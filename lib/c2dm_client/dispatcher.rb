@@ -1,4 +1,4 @@
 module C2dmClient
-  class Delivery
+  class Dispatcher
   end
 end
