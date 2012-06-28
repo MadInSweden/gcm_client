@@ -1,0 +1,20 @@
+# -*- encoding: utf-8 -*-
+require File.expand_path('../lib/c2dm_client/version', __FILE__)
+
+Gem::Specification.new do |gem|
+  gem.name        = "c2dm_client"
+  gem.version     = C2dmClient::VERSION
+  gem.authors     = ["Anders Carling"]
+  gem.email       = ["anders.carling@footballaddicts.com"]
+  gem.homepage    = ""
+  gem.summary     = %q{Library for sending Cloud 2 Device Messages to Android devices from Ruby}
+  gem.description = %q{Library for sending Cloud 2 Device Messages to Android devices from Ruby}
+
+  gem.files         = `git ls-files`.split($\)
+  gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
+  gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
+  gem.require_paths = ["lib"]
+
+  gem.add_development_dependency "rake"
+  gem.add_development_dependency "rspec"
+end
