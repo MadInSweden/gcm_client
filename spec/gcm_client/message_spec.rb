@@ -1,13 +1,13 @@
 require 'spec_helper'
 
-describe C2dmClient::Message do
+describe GcmClient::Message do
 
   context '#initialize' do
 
     it "should create new object given registration_id and a payload" do
-      payload = C2dmClient::Payload.new('coll_key')
-      message = C2dmClient::Message.new('reg_id', payload)
-      message.should be_a(C2dmClient::Message)
+      payload = GcmClient::Payload.new('coll_key')
+      message = GcmClient::Message.new('reg_id', payload)
+      message.should be_a(GcmClient::Message)
     end
 
   end

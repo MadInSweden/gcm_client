@@ -1,4 +1,4 @@
-module C2dmClient
+module GcmClient
   # Payload encapsulates and serializes all info in common between
   # multiple receivers of the same apns message.
   #

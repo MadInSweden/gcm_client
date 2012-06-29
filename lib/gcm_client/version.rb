@@ -1,3 +1,3 @@
-module C2dmClient
+module GcmClient
   VERSION = "0.0.1"
 end

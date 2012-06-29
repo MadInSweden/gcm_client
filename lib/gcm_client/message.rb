@@ -1,4 +1,4 @@
-module C2dmClient
+module GcmClient
   class Message
 
     attr_reader :registration_id, :payload

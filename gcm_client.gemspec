@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
-require File.expand_path('../lib/c2dm_client/version', __FILE__)
+require File.expand_path('../lib/gcm_client/version', __FILE__)
 
 Gem::Specification.new do |gem|
-  gem.name        = "c2dm_client"
-  gem.version     = C2dmClient::VERSION
+  gem.name        = "gcm_client"
+  gem.version     = GcmClient::VERSION
   gem.authors     = ["Anders Carling"]
   gem.email       = ["anders.carling@footballaddicts.com"]
   gem.homepage    = ""

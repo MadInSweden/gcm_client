@@ -1,4 +1,4 @@
-# C2dmClient
+# GcmClient
 
 TODO: Write a gem description
 
@@ -6,7 +6,7 @@ TODO: Write a gem description
 
 Add this line to your application's Gemfile:
 
-    gem 'c2dm_client'
+    gem 'gcm_client'
 
 And then execute:
 
@@ -14,7 +14,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install c2dm_client
+    $ gem install gcm_client
 
 ## Usage
 

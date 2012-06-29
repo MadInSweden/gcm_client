@@ -1,12 +1,12 @@
 require 'spec_helper'
 
-describe C2dmClient::Dispatcher do
+describe GcmClient::Dispatcher do
 
   context '#initialize' do
 
     it "should create new object given username and password" do
-      dispatcher = C2dmClient::Dispatcher.new('user', 'password')
-      dispatcher.should be_a(C2dmClient::Dispatcher)
+      dispatcher = GcmClient::Dispatcher.new('user', 'password')
+      dispatcher.should be_a(GcmClient::Dispatcher)
     end
 
   end

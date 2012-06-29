@@ -1,4 +1,4 @@
-module C2dmClient
+module GcmClient
   class Dispatcher
 
     attr_reader :username, :password
