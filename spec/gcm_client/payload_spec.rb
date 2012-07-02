@@ -32,8 +32,22 @@ describe GcmClient::Payload do
 
   end
 
-  pending "should validate size of payload"
+  context '#bytesize' do
+    it 'should return bytesize of payload json' do
+      GcmClient::Payload.new({'a' => 'a'*2040}).bytesize.should == 2048
+      GcmClient::Payload.new({'aaa' => 'a'*40}).bytesize.should == 50
 
-  pending "should serialize data to HTTP POST data"
+    end
+  end
+
+
+  it 'should limit the size of payload json to 2048 bytes (service supports 4Kb)' do
+    GcmClient::Payload.new({'a' => 'a'*2040})
+
+    lambda { GcmClient::Payload.new({'a' => 'a'*2041}) }.should raise_error(GcmClient::PayloadTooLarge) do |e|
+      e.data.should == {'a' => 'a'*2041}
+      e.bytesize.should == 2049
+    end
+  end
 
 end
