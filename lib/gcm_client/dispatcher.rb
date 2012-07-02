@@ -1,10 +1,10 @@
 module GcmClient
   class Dispatcher
 
-    attr_reader :username, :password
+    attr_reader :api_key
 
-    def initialize(username, password)
-      @username, @password = username, password
+    def initialize(api_key)
+      @api_key = api_key
     end
 
   end

@@ -4,8 +4,8 @@ describe GcmClient::Dispatcher do
 
   context '#initialize' do
 
-    it "should create new object given username and password" do
-      dispatcher = GcmClient::Dispatcher.new('user', 'password')
+    it "should create new object given api_key" do
+      dispatcher = GcmClient::Dispatcher.new('api_key')
       dispatcher.should be_a(GcmClient::Dispatcher)
     end
 
