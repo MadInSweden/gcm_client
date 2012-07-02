@@ -5,7 +5,7 @@ describe GcmClient::Message do
   context '#initialize' do
 
     it "should create new object given registration_id and a payload" do
-      payload = GcmClient::Payload.new('coll_key')
+      payload = GcmClient::Payload.new({})
       message = GcmClient::Message.new('reg_id', payload)
       message.should be_a(GcmClient::Message)
     end

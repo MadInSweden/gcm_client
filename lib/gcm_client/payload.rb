@@ -1,20 +1,20 @@
+require 'yajl'
+
 module GcmClient
   # Payload encapsulates and serializes all info in common between
   # multiple receivers of the same apns message.
-  #
-  # The same Payload instance can be used for multiple Message
-  # instances, in order to optimize serialization compution time.
   class Payload
 
-    def initialize(collapse_key, data={})
-      @hash = { 'collapse_key' => collapse_key.to_s }
-      data.each_pair { |k,v| @hash['data.%s' % k] = v.to_s }
-      @hash.freeze
+    def initialize(data)
+      data_hash = {}
+      data.each_pair { |k,v| data_hash[k.to_s] = v.to_s }
+      @json_fmt = %Q[{"registration_ids":%s,"data":#{Yajl.dump(data_hash)}}]
     end
 
-    def to_hash
-      @hash
+    def json_for_registration_ids(registration_ids)
+      @json_fmt % Yajl.dump(registration_ids.map(&:to_s))
     end
+
 
   end
 end
