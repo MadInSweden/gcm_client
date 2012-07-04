@@ -7,8 +7,8 @@ Gem::Specification.new do |gem|
   gem.authors     = ["Anders Carling"]
   gem.email       = ["anders.carling@footballaddicts.com"]
   gem.homepage    = ""
-  gem.summary     = %q{Library for sending Cloud 2 Device Messages to Android devices from Ruby}
-  gem.description = %q{Library for sending Cloud 2 Device Messages to Android devices from Ruby}
+  gem.summary     = %q{Library for sending Google Cloud Messages to Android devices from Ruby}
+  gem.description = %q{Library for sending Google Cloud Messages to Android devices from Ruby}
 
   gem.files         = `git ls-files`.split($\)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
