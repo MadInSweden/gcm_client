@@ -13,7 +13,17 @@ module GcmClient
 
     def dispatch(registration_ids, payload)
       json = payload.json_for_registration_ids(registration_ids)
+      STDERR.puts "DISPATCH STARTING.."
+      STDERR.puts "SENDING FROM:"
+      STDERR.puts self.inspect
+      STDERR.puts "REG_IDS:"
+      STDERR.puts registration_ids.inspect
+      STDERR.puts "PAYLOAD:"
+      STDERR.puts payload.inspect
       resp = @http.post 'https://android.googleapis.com/gcm/send', json, headers
+      STDERR.puts "SENT.. RESPONSE IS:"
+      STDERR.puts resp.inspect
+      STDERR.puts "DISPATCH DONE!"
 
       callback(:sent, registration_ids)
     end
