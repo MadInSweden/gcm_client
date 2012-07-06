@@ -4,6 +4,9 @@ module GcmClient
   PAYLOAD_DATA_MAX_SIZE = 2048
 
   class PayloadTooLarge < RuntimeError
+
+    # Public API
+
     attr_reader :data
     attr_reader :bytesize
 
@@ -22,6 +25,8 @@ module GcmClient
   # Payload encapsulates and serializes all info in common between
   # multiple receivers of the same apns message.
   class Payload
+
+    # Public API
 
     def initialize(data)
       data_hash = data.each_with_object({}) { |(k,v), h| h[k.to_s] = v.to_s }
@@ -43,6 +48,7 @@ module GcmClient
       @json_fmt % Yajl.dump(registration_ids.map(&:to_s))
     end
 
+    # Internal API
 
     private
       def check_size!(data)
