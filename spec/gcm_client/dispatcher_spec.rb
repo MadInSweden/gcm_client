@@ -24,9 +24,11 @@ describe GcmClient::Dispatcher do
       @api_key = 'asdasjodajsdo'
 
       @callbacks = {
-        :on_sent => double('on_sent'),
-        :on_temp_fail => double('on_msg_temp_fail'),
-        :on_perm_fail => double('on_msg_perm_fail'),
+        :on_sent           => double('on_sent'),
+        :on_temp_fail      => double('on_msg_temp_fail'),
+        :on_perm_fail      => double('on_msg_perm_fail'),
+        :on_not_registered => double('on_not_registered'),
+        :on_canonical_id   => double('on_canonical_id'),
       }
 
       @payload = GcmClient::Payload.new(:a => 'b')
@@ -40,20 +42,21 @@ describe GcmClient::Dispatcher do
       )
       responses.each do |response|
         stub = if response == :accepted
-          stub.to_return(:status => 200)
+          stub.to_return(:status => 200, :body => Yajl.dump({
+            :multicast_id => rand(1000), :success => reg_ids.size, :failure => 0, :canonical_ids => 0,
+            :results => reg_ids.map { { :message_id => "1:#{rand(1000000)}" } }
+          }))
        elsif response.is_a?(Exception)
           stub.to_raise(response)
         else
-          stub.to_return(:status => response[0], :body => response[1], :headers => response[2])
+          stub.to_return(:status => response[0], :body => response[1])
         end
       end
 
       stub
     end
 
-    pending 'should implement nifty logging'
-    pending 'should handle canonical_ids'
-    pending "sleep a little after each error req"
+    pending "sleep a little after each error req (exponential back-off + Retry-After)"
 
     it 'should send messages' do
       reg_ids = 190.times.each_with_object([]) { |n, ary|  ary << "adjasodjasodjasoj#{n}" }
@@ -69,23 +72,48 @@ describe GcmClient::Dispatcher do
       stub.should have_been_requested
     end
 
-    context 'integration test', :integration => true do
+    it 'should handle canonical_ids' do
+      reg_ids = 2.times.each_with_object([]) { |n, ary|  ary << "adjasodjasodjasoj#{n}" }
 
-    it 'should send more than 1000 messages in batches' do
-      reg_ids = 1500.times.each_with_object([]) { |n, ary|  ary << "adjasodjasodjasoj#{n}" }
+      canonical_id = "12i30213"
+      @callbacks[:on_sent].should_receive(:call).once.ordered.with(@dispatcher, reg_ids[0])
+      @callbacks[:on_canonical_id].should_receive(:call).once.ordered.with(@dispatcher, reg_ids[1], canonical_id)
+      @callbacks[:on_sent].should_receive(:call).once.ordered.with(@dispatcher, reg_ids[1])
 
-      reg_ids.each do |reg_id|
-        @callbacks[:on_sent].should_receive(:call).once.ordered.with(@dispatcher, reg_id)
-      end
-
-      stub0 = stub_request_with_responses(reg_ids.first(1000), :accepted)
-      stub1 = stub_request_with_responses(reg_ids.last(500), :accepted)
+      stub = stub_request_with_responses(reg_ids, [200,
+        Yajl.dump({
+          :multicast_id => 123,
+          :success => 2,
+          :failure => 0,
+          :canonical_ids => 1,
+          :results => [
+            { :message_id => "1:21323" }, { :message_id => "1:0408", :registration_id => canonical_id },
+          ]
+      })])
 
       @dispatcher.dispatch(reg_ids, @payload)
 
-      stub0.should have_been_requested
-      stub1.should have_been_requested
+      stub.should have_been_requested
     end
+
+
+    context 'integration test', :integration => true do
+
+      it 'should send more than 1000 messages in batches' do
+        reg_ids = 1500.times.each_with_object([]) { |n, ary|  ary << "adjasodjasodjasoj#{n}" }
+
+        reg_ids.each do |reg_id|
+          @callbacks[:on_sent].should_receive(:call).once.ordered.with(@dispatcher, reg_id)
+        end
+
+        stub0 = stub_request_with_responses(reg_ids.first(1000), :accepted)
+        stub1 = stub_request_with_responses(reg_ids.last(500), :accepted)
+
+        @dispatcher.dispatch(reg_ids, @payload)
+
+        stub0.should have_been_requested
+        stub1.should have_been_requested
+      end
 
     end
 
@@ -100,10 +128,10 @@ describe GcmClient::Dispatcher do
                              each_slice(1000).to_a
 
               temp_error   = HTTPClient::BadResponseError.new("Test Exception")
-              temp_status  = [500, '', {}]
+              temp_status  = [500, '']
 
               perm_error   = SocketError.new("Test Exception")
-              perm_status  = [400, '', {}]
+              perm_status  = [400, '']
 
               # First batch, temp_error, temp_status, success
               stub0  = stub_request_with_responses(reg_ids[0], temp_error, temp_status, :accepted)
@@ -205,7 +233,7 @@ describe GcmClient::Dispatcher do
                 end
               end
 
-              stub = stub_request_with_responses(reg_ids, [status, body,{}])
+              stub = stub_request_with_responses(reg_ids, [status, body])
 
               @dispatcher.dispatch(reg_ids, @payload)
 
@@ -258,7 +286,7 @@ describe GcmClient::Dispatcher do
                 @callbacks[:on_sent].should_receive(:call).once.ordered.with(@dispatcher, reg_id)
               end
 
-              stub = stub_request_with_responses(reg_ids, [status, body, {}], :accepted)
+              stub = stub_request_with_responses(reg_ids, [status, body], :accepted)
 
               @dispatcher.dispatch(reg_ids, @payload)
 
@@ -271,18 +299,143 @@ describe GcmClient::Dispatcher do
 
       context 'on message' do
 
-        context 'recoverable' do
-          pending 'Unavailable'
+        it 'should handle gcm error "Unavailable"' do
+          reg_ids = 3.times.each_with_object([]) { |n, ary|  ary << "adjasodjasodjasoj#{n}" }
+
+          reg_ids.first(2).each do |reg_id|
+            @callbacks[:on_temp_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id, kind_of(GcmClient::GcmError)) do |d,rid,error|
+
+              error.result.should == {'error' => "Unavailable"}
+            end
+          end
+          reg_ids.last(1).each do |reg_id|
+            @callbacks[:on_sent].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id)
+          end
+          reg_ids.first(2).first(1).each do |reg_id|
+            @callbacks[:on_temp_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id, kind_of(GcmClient::GcmError)) do |d,rid,error|
+
+              error.result.should == {'error' => "Unavailable"}
+            end
+          end
+          reg_ids.first(2).last(1).each do |reg_id|
+            @callbacks[:on_sent].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id)
+          end
+
+          reg_ids.first(1).each do |reg_id|
+            @callbacks[:on_temp_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id, kind_of(GcmClient::GcmError)) do |d,rid,error|
+
+              error.result.should == {'error' => "Unavailable"}
+            end
+          end
+
+          reg_ids.first(1).each do |reg_id|
+            @callbacks[:on_temp_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id, kind_of(GcmClient::GcmError)) do |d,rid,error|
+
+              error.result.should == {'error' => "Unavailable"}
+            end
+          end
+
+          reg_ids.first(1).each do |reg_id|
+            @callbacks[:on_temp_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id, kind_of(GcmClient::GcmError)) do |d,rid,error|
+
+              error.result.should == {'error' => "Unavailable"}
+            end
+          end
+
+          reg_ids.first(1).each do |reg_id|
+            @callbacks[:on_perm_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_id, kind_of(GcmClient::TooManyTempFailures))
+          end
+
+          stub0 = stub_request_with_responses(reg_ids, [200,
+            Yajl.dump({
+              :multicast_id => 123,
+              :success => 1,
+              :failure => 2,
+              :canonical_ids => 0,
+              :results => [
+                { :error => "Unavailable" }, { :error => "Unavailable" }, { :message_id => "1:0408" },
+              ]
+          })])
+          stub1 = stub_request_with_responses(reg_ids.first(2), [200,
+            Yajl.dump({
+              :multicast_id => 123,
+              :success => 1,
+              :failure => 1,
+              :canonical_ids => 0,
+              :results => [
+                { :error => "Unavailable" }, { :message_id => "1:0408" },
+              ]
+          })])
+          stub2 = stub_request_with_responses(reg_ids.first(1), [200,
+            Yajl.dump({
+              :multicast_id => 123,
+              :success => 0,
+              :failure => 1,
+              :canonical_ids => 0,
+              :results => [
+                { :error => "Unavailable" },
+              ]
+          })])
+
+          @dispatcher.dispatch(reg_ids, @payload)
+
+          stub0.should have_been_requested
+          stub1.should have_been_requested
+          stub2.should have_been_requested.times(3)
         end
 
-        context 'non recoverable' do
-          pending 'NotRegistered'
-          pending 'MissingRegistration'
-          pending 'InvalidRegistration'
-          pending 'MismatchSenderId'
-          pending 'MessageTooBig'
-          pending 'MissingRegistration'
-          pending 'MessageFailedToManyTimes (internal)'
+        it "should handle nonrecoverable gcm errors" do
+          reg_ids = 8.times.each_with_object([]) { |n, ary|  ary << "adjasodjasodjasoj#{n}" }
+
+          @callbacks[:on_sent].should_receive(:call).once.ordered.\
+            with(@dispatcher, reg_ids[0])
+
+          # Special callback for NotRegistred since they are really
+          # meaningfull to host application.
+          @callbacks[:on_not_registered].should_receive(:call).once.ordered.\
+            with(@dispatcher, reg_ids[1])
+
+          [ 'NotRegistered', 'MissingRegistration', 'InvalidRegistration', 'MismatchSenderId',
+            'MessageTooBig', 'MissingRegistration' ].each_with_index do |err,n|
+            @callbacks[:on_perm_fail].should_receive(:call).once.ordered.\
+              with(@dispatcher, reg_ids[n + 1], kind_of(GcmClient::GcmError)) do |d,rid,error|
+
+              error.result.should == { 'error' => err }
+            end
+          end
+
+          @callbacks[:on_sent].should_receive(:call).once.ordered.\
+            with(@dispatcher, reg_ids[7])
+
+          stub = stub_request_with_responses(reg_ids, [200,
+            Yajl.dump({
+              :multicast_id => rand(1000),
+              :success => 2,
+              :failure => 6,
+              :canonical_ids => 0,
+              :results => [
+                { :message_id => "1:#{rand(1000)}" },
+                { :error => 'NotRegistered' },
+                { :error => 'MissingRegistration' },
+                { :error => 'InvalidRegistration' },
+                { :error => 'MismatchSenderId' },
+                { :error => 'MessageTooBig' },
+                { :error => 'MissingRegistration' },
+                { :message_id => "1:#{rand(1000)}" },
+              ]
+          })])
+
+          @dispatcher.dispatch(reg_ids, @payload)
+
+          stub.should have_been_requested
         end
 
       end

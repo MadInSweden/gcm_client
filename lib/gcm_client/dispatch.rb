@@ -21,11 +21,31 @@ module GcmClient
 
   end
 
-  class Dispatch
+  class GcmError < RuntimeError
 
+    # Public API
+
+    attr_reader :result
+
+    def initialize(result)
+      @result = result
+
+      super(self.message)
+    end
+
+    def message
+      "Got result #{self.result['error']} from GCM."
+    end
+
+  end
+
+  class Dispatch
 
     # Specified as max value in GCM specification
     MAX_BATCH_SIZE = 1000
+
+    # These GCM errors could be solvable with a retry
+    GCM_TEMP_ERRORS = ['Unavailable']
 
     # This seems resonable.
     MAX_RETRIES = 5
@@ -53,8 +73,8 @@ module GcmClient
       ## Message dispatch
 
       def dispatch_batch!(reg_ids)
-        post(json(reg_ids))
-        sents(reg_ids)
+        response = post(json(reg_ids))
+        parse_http_response(reg_ids, response)
       rescue HTTPError => e
         case e.response.status
         when 500,503
@@ -72,18 +92,31 @@ module GcmClient
         perm_fails(reg_ids, e)
       end
 
+      def parse_http_response(reg_ids, response)
+        reg_ids.zip(Yajl.load(response.body)['results']).each do |reg_id, result|
+          parse_gcm_result(reg_id, result)
+        end
+      end
+
+      def parse_gcm_result(reg_id, result)
+        if result['message_id']
+          canonical_id(reg_id, result['registration_id']) if result['registration_id']
+          sent(reg_id)
+        elsif GCM_TEMP_ERRORS.include?(result['error'])
+          temp_fail(reg_id, GcmError.new(result))
+        else
+          not_registered(reg_id) if result['error'] == 'NotRegistered'
+          perm_fail(reg_id, GcmError.new(result))
+        end
+      end
+
       ## Message dispatch helpers
 
       def json(reg_ids)
         self.payload.json_for_registration_ids(reg_ids)
       end
 
-
       ## reg_id livecycle handlers
-
-      def sents(reg_ids)
-        reg_ids.each { |reg_id| sent(reg_id) }
-      end
 
       def temp_fails(reg_ids, e)
         reg_ids.each { |reg_id| temp_fail(reg_id, e) }
@@ -95,6 +128,14 @@ module GcmClient
 
       def sent(reg_id)
         callback(reg_id, :sent)
+      end
+
+      def not_registered(reg_id)
+        callback(reg_id, :not_registered)
+      end
+
+      def canonical_id(reg_id, canonical_id)
+        callback(reg_id, :canonical_id, canonical_id)
       end
 
       def temp_fail(reg_id, e)
