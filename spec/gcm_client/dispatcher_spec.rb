@@ -9,14 +9,6 @@ describe GcmClient::Dispatcher do
       dispatcher.should be_a(GcmClient::Dispatcher)
     end
 
-    it "should set timeouts on HttpClient instance" do
-      dispatcher = GcmClient::Dispatcher.new('api_key')
-      dispatcher.http.connect_timeout.should    == 30
-      dispatcher.http.send_timeout.should       == 30
-      dispatcher.http.receive_timeout.should    == 30
-      dispatcher.http.keep_alive_timeout.should == 15
-    end
-
   end
 
   context '#dispatch' do
