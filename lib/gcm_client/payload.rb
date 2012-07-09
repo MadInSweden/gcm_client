@@ -1,30 +1,11 @@
 require 'yajl'
 
 module GcmClient
-  PAYLOAD_DATA_MAX_SIZE = 2048
-
-  class PayloadTooLarge < RuntimeError
-
-    # Public API
-
-    attr_reader :data
-    attr_reader :bytesize
-
-    def initialize(data, bytesize)
-      @data, @bytesize = data, bytesize
-
-      super(self.message)
-    end
-
-    def message
-      "Payload generates a JSON string of #{self.bytesize} bytes, max is #{PAYLOAD_DATA_MAX_SIZE} bytes."
-    end
-
-  end
 
   # Payload encapsulates and serializes all info in common between
   # multiple receivers of the same apns message.
   class Payload
+    DATA_MAX_SIZE = 2048
 
     # Public API
 
@@ -52,7 +33,7 @@ module GcmClient
 
     private
       def check_size!(data)
-        raise PayloadTooLarge.new(data, bytesize) if self.bytesize > PAYLOAD_DATA_MAX_SIZE
+        raise PayloadTooLarge.new(data, bytesize) if self.bytesize > DATA_MAX_SIZE
       end
   end
 end

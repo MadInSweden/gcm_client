@@ -1,43 +1,5 @@
 module GcmClient
 
-  class TooManyTempFailures < RuntimeError
-  end
-
-  class HTTPError < RuntimeError
-
-    # Public API
-
-    attr_reader :response
-
-    def initialize(response)
-      @response = response
-
-      super(self.message)
-    end
-
-    def message
-      "Got HTTP status #{self.response.status} from GCM."
-    end
-
-  end
-
-  class GcmError < RuntimeError
-
-    # Public API
-
-    attr_reader :result
-
-    def initialize(result)
-      @result = result
-
-      super(self.message)
-    end
-
-    def message
-      "Got result #{self.result['error']} from GCM."
-    end
-
-  end
 
   class Dispatch
 
