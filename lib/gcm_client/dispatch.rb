@@ -62,19 +62,19 @@ module GcmClient
       ## reg_id livecycle handlers
 
       def sent(reg_id)
-        callback(reg_id, :sent)
+        callback(:sent, reg_id)
       end
 
       def not_registered(reg_id)
-        callback(reg_id, :not_registered)
+        callback(:not_registered, reg_id)
       end
 
       def canonical_id(reg_id, canonical_id)
-        callback(reg_id, :canonical_id, canonical_id)
+        callback(:canonical_id, reg_id, canonical_id)
       end
 
       def temp_fail(reg_id, e)
-        callback(reg_id, :temp_fail, e)
+        callback(:temp_fail, reg_id, e)
 
         if too_many_temp_failures?(reg_id)
           perm_fail(reg_id, TooManyTempFailures.new)
@@ -83,11 +83,11 @@ module GcmClient
         end
       end
 
-      def perm_fail(reg_ids, e)
-        callback(reg_ids, :perm_fail, e)
+      def perm_fail(reg_id, e)
+        callback(:perm_fail, reg_id, e)
       end
 
-      ## Message Status helpers
+      ## reg_id livecycle helpers
 
       def too_many_temp_failures?(reg_id)
         self.failures[reg_id] ||= 0
@@ -97,7 +97,7 @@ module GcmClient
 
       ## Callback helper
 
-      def callback(reg_id, name, *args)
+      def callback(name, reg_id, *args)
         cbk = self.callbacks[:"on_#{name}"]
         cbk.call(self.dispatcher, reg_id, *args) if cbk
       end
