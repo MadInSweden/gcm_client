@@ -40,8 +40,7 @@ module GcmClient
       response = self.httpclient.post(GCM_URL, json_data, self.headers)
 
       if response.status == SUCCESS_CODE
-        data    = Yajl.load(response.body)
-        results = reg_ids.zip(data['results'])
+        results = ResultParser.new(reg_ids, response.body)
         SuccessResponse.new(response, results)
       else
         raise HTTPError.new(response)

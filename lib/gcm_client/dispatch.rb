@@ -5,9 +5,6 @@ module GcmClient
     # Specified as max value in GCM specification
     MAX_BATCH_SIZE = 1000
 
-    # These GCM errors could be solvable with a retry
-    GCM_TEMP_ERRORS = ['Unavailable']
-
     # This seems resonable.
     MAX_RETRIES = 5
 
@@ -39,23 +36,11 @@ module GcmClient
 
         case response
         when SuccessResponse
-          response.results.each { |reg_id, result| parse_gcm_result(reg_id, result) }
+          response.results.each { |reg_id, action, *args| send(action, reg_id, *args) }
         when TempErrorResponse
           reg_ids.each { |reg_id| temp_fail(reg_id, response.error) }
         when PermErrorResponse
           reg_ids.each { |reg_id| perm_fail(reg_id, response.error) }
-        end
-      end
-
-      def parse_gcm_result(reg_id, result)
-        if result['message_id']
-          canonical_id(reg_id, result['registration_id']) if result['registration_id']
-          sent(reg_id)
-        elsif GCM_TEMP_ERRORS.include?(result['error'])
-          temp_fail(reg_id, GcmError.new(result))
-        else
-          not_registered(reg_id) if result['error'] == 'NotRegistered'
-          perm_fail(reg_id, GcmError.new(result))
         end
       end
 
@@ -73,8 +58,8 @@ module GcmClient
         callback(:canonical_id, reg_id, canonical_id)
       end
 
-      def temp_fail(reg_id, e)
-        callback(:temp_fail, reg_id, e)
+      def temp_fail(reg_id, error)
+        callback(:temp_fail, reg_id, error)
 
         if too_many_temp_failures?(reg_id)
           perm_fail(reg_id, TooManyTempFailures.new)
@@ -83,8 +68,8 @@ module GcmClient
         end
       end
 
-      def perm_fail(reg_id, e)
-        callback(:perm_fail, reg_id, e)
+      def perm_fail(reg_id, error)
+        callback(:perm_fail, reg_id, error)
       end
 
       ## reg_id livecycle helpers
