@@ -1,6 +1,5 @@
 module GcmClient
 
-
   class Dispatch
 
     # Specified as max value in GCM specification
@@ -14,10 +13,11 @@ module GcmClient
 
     # Internal API
 
-    attr_reader :dispatcher, :send_que, :payload, :callbacks, :failures
+    attr_reader :dispatcher, :connection, :callbacks, :send_que, :payload, :failures
 
     def initialize(dispatcher, registration_ids, payload)
       @dispatcher = dispatcher
+      @connection = dispatcher.connection
       @callbacks = dispatcher.callbacks
       @send_que = registration_ids.dup
       @payload = payload
@@ -35,28 +35,15 @@ module GcmClient
       ## Message dispatch
 
       def dispatch_batch!(reg_ids)
-        response = post(json(reg_ids))
-        parse_http_response(reg_ids, response)
-      rescue HTTPError => e
-        case e.response.status
-        when 500,503
-          temp_fails(reg_ids, e)
-        else
-          perm_fails(reg_ids, e)
-        end
-      rescue HTTPClient::BadResponseError,
-             HTTPClient::TimeoutError,
-             OpenSSL::SSL::SSLError,
-             Errno::ETIMEDOUT,
-             Errno::EADDRNOTAVAIL => e
-        temp_fails(reg_ids, e)
-      rescue => e
-        perm_fails(reg_ids, e)
-      end
+        response = self.connection.post(payload, reg_ids)
 
-      def parse_http_response(reg_ids, response)
-        reg_ids.zip(Yajl.load(response.body)['results']).each do |reg_id, result|
-          parse_gcm_result(reg_id, result)
+        case response
+        when SuccessResponse
+          response.results.each { |reg_id, result| parse_gcm_result(reg_id, result) }
+        when TempErrorResponse
+          reg_ids.each { |reg_id| temp_fail(reg_id, response.error) }
+        when PermErrorResponse
+          reg_ids.each { |reg_id| perm_fail(reg_id, response.error) }
         end
       end
 
@@ -72,21 +59,7 @@ module GcmClient
         end
       end
 
-      ## Message dispatch helpers
-
-      def json(reg_ids)
-        self.payload.json_for_registration_ids(reg_ids)
-      end
-
       ## reg_id livecycle handlers
-
-      def temp_fails(reg_ids, e)
-        reg_ids.each { |reg_id| temp_fail(reg_id, e) }
-      end
-
-      def perm_fails(reg_ids, e)
-        reg_ids.each { |reg_id| perm_fail(reg_id, e) }
-      end
 
       def sent(reg_id)
         callback(reg_id, :sent)
@@ -120,12 +93,6 @@ module GcmClient
         self.failures[reg_id] ||= 0
         self.failures[reg_id] += 1
         self.failures[reg_id] >= MAX_RETRIES
-      end
-
-      def post(json)
-        self.dispatcher.post(json).tap do |response|
-          raise(HTTPError.new(response)) if response.status != 200
-        end
       end
 
       ## Callback helper

@@ -1,11 +1,9 @@
-require 'httpclient'
-
 module GcmClient
   class Dispatcher
 
     # Internal API
 
-    attr_reader :api_key, :http, :callbacks
+    attr_reader :api_key, :connection, :callbacks
 
     # Public API
 
@@ -46,28 +44,13 @@ module GcmClient
     def initialize(api_key, callbacks={})
       @api_key   = api_key
       @callbacks = callbacks
-      @http = HTTPClient.new
-      @http.receive_timeout    = 30
-      @http.connect_timeout    = 30
-      @http.send_timeout       = 30
-      @http.keep_alive_timeout = 15
+      @connection = Connection.new(api_key)
     end
 
     def dispatch(registration_ids, payload)
       d = Dispatch.new(self, registration_ids, payload)
       d.dispatch!
     end
-
-    # Internal API
-
-    def post(json)
-      self.http.post('https://android.googleapis.com/gcm/send', json, headers)
-    end
-
-    private
-      def headers
-        { "Content-Type" => "application/json", "Authorization" => "key=#{self.api_key}" }
-      end
 
   end
 end
