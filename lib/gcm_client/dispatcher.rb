@@ -27,11 +27,11 @@ module GcmClient
     #     @param dispatcher Dispatcher
     #     @param registration_id Fixnum
     #     @param error Exception
-    #   :on_send => Proc
+    #   :on_sent => Proc
     #     @param dispatcher Dispatcher
     #     @param registration_id Fixnum
     #
-    # Callbacks :on_msg_send and :on_msg_perm_fail is mutually
+    # Callbacks :on_sent and :on_perm_fail is mutually
     # exclusive, only one of them will be sent.
     #
     # Callback :on_not_registered indicates a NotRegistered error from
